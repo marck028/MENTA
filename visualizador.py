@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import calendar
 
 # Cargar el archivo de Excel predeterminado
 ruta_archivo = "C:\\Users\\Marco\\Documents\\UNIVERSIDAD\\MENTA\\DATOS CBBA.xlsx"
@@ -199,3 +200,64 @@ else:
                                     title=f"10 Platos Menos Vendidos en {sucursal}",
                                     labels={'CANTIDAD': 'Cantidad Vendida'}, color='Producto')
         st.plotly_chart(fig_menos_vendidos, use_container_width=True)
+        
+# Limpiar nombres de columnas
+df.columns = df.columns.str.strip()  # Eliminar espacios en blanco
+
+# Convertir la columna 'FECHA' a tipo datetime
+df['FECHA'] = pd.to_datetime(df['FECHA'], format='%d/%m/%Y', errors='coerce')
+
+# Crear una nueva columna para el mes en formato 'YYYY-MM'
+df['Mes'] = df['FECHA'].dt.to_period('M').astype(str)
+
+# Agrupar por mes y sucursal para calcular el valor total
+valores_por_sucursal = df.groupby(['Mes', 'Sucursal'])['VALOR'].sum().reset_index()
+
+# Crear el gráfico de líneas
+fig = px.line(
+    valores_por_sucursal,
+    x='Mes',
+    y='VALOR',
+    color='Sucursal',
+    title='Valor Generado por Sucursal según el Mes',
+    labels={'VALOR': 'Valor Total', 'Mes': 'Mes'},
+    markers=True
+)
+
+# Mostrar el gráfico en Streamlit
+st.plotly_chart(fig)
+
+df['Categoría'] = df['Producto'].apply(lambda x: next((cat for cat, productos in menu.items() if x in productos), 'OTROS'))
+
+# Filtros de mes y sucursal
+st.sidebar.header("Filtros")
+
+# Obtener los nombres de los meses
+meses = list(calendar.month_name)[1:]  # Excluir el primer elemento que es una cadena vacía
+
+# Selección de mes
+mes_nombre = st.sidebar.selectbox("Seleccionar Mes", meses)
+mes = meses.index(mes_nombre) + 1  # Convertir el nombre del mes a su número correspondiente
+
+# Selección de sucursal
+sucursal = st.sidebar.selectbox("Seleccionar Sucursal", df['Sucursal'].unique())
+
+# Filtrar el DataFrame según los filtros seleccionados
+df_filtrado = df[(df['FECHA'].dt.month == mes) & (df['Sucursal'] == sucursal)]
+
+# Calcular la cantidad total por categoría y el total general
+totales_por_categoria = df_filtrado.groupby('Categoría')['CANTIDAD'].sum()
+total_general = totales_por_categoria.sum()
+
+# Calcular el porcentaje de cada categoría en comparación con el total
+porcentajes_por_categoria = (totales_por_categoria / total_general) * 100
+
+# Gráficos de torta para cada categoría vs. todas las categorías
+for categoria in porcentajes_por_categoria.index:
+    fig = px.pie(
+        names=["Otras Categorías", categoria],
+        values=[100 - porcentajes_por_categoria[categoria], porcentajes_por_categoria[categoria]],
+        title=f"{categoria} vs Todas las Categorías - Sucursal {sucursal}",
+        hole=0.3
+    )
+    st.plotly_chart(fig)
