@@ -227,6 +227,9 @@ fig = px.line(
 # Mostrar el gráfico en Streamlit
 st.plotly_chart(fig)
 
+####################################
+
+# Crear la columna 'Categoría' en base al diccionario 'menu'
 df['Categoría'] = df['Producto'].apply(lambda x: next((cat for cat, productos in menu.items() if x in productos), 'OTROS'))
 
 # Filtros de mes y sucursal
@@ -235,15 +238,17 @@ st.sidebar.header("Filtros")
 # Obtener los nombres de los meses
 meses = list(calendar.month_name)[1:]  # Excluir el primer elemento que es una cadena vacía
 
-# Selección de mes
-mes_nombre = st.sidebar.selectbox("Seleccionar Mes", meses)
-mes = meses.index(mes_nombre) + 1  # Convertir el nombre del mes a su número correspondiente
+# Selección de meses (permite múltiples selecciones)
+meses_seleccionados = st.sidebar.multiselect("Seleccionar Meses", meses)
+
+# Convertir los nombres de los meses seleccionados a sus números correspondientes
+meses_numeros = [meses.index(mes) + 1 for mes in meses_seleccionados]
 
 # Selección de sucursal
 sucursal = st.sidebar.selectbox("Seleccionar Sucursal", df['Sucursal'].unique())
 
 # Filtrar el DataFrame según los filtros seleccionados
-df_filtrado = df[(df['FECHA'].dt.month == mes) & (df['Sucursal'] == sucursal)]
+df_filtrado = df[(df['FECHA'].dt.month.isin(meses_numeros)) & (df['Sucursal'] == sucursal)]
 
 # Calcular la cantidad total por categoría y el total general
 totales_por_categoria = df_filtrado.groupby('Categoría')['CANTIDAD'].sum()
